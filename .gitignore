@@ -1,0 +1,19 @@
+# Mac OS X specific
+.DS_Store
+
+# IntelliJ specific
+.idea/
+
+# SBT specific
+target/
+project/*
+!project/assembly.sbt
+
+# R specific
+.Rhistory
+
+# project specific
+output/
+output-remote/
+data/
+scratch.sc
