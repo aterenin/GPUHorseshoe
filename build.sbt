@@ -5,7 +5,7 @@ version := "1.0"
 scalaVersion := "2.11.8"
 
 assemblyJarName in assembly := "AsyncGibbsMPI.jar"
-mainClass in assembly := Some("AsyncGibbsMPI")
+mainClass in assembly := Some("MCMC")
 test in assembly := {}
 
 val breezeVersion = "0.12"
