@@ -18,19 +18,24 @@
 
 
 /*
- * Function     : cuda_positive_tnorm
+ * Function     : cuda_onesided_unitvar_tnorm
  * Purpose      : draws samples from independent truncated normals with mean vector mu,
-                  std. dev. 1, truncated up from zero to infinity, using inversion method,
-                  which is reasonable in floating point precision as long as mean vector mu
-                  is not too far away from 0.
+                  std. dev. 1, truncated from zero to positive infinity if y = 1 and
+                  negative infinity if y = -1, using inversion method, which is reasonable
+                  in floating point precision as long as mean vector mu is not too far
+                  away from 0.
  * Argument n   : size of sample
  * Argument z*  : pointer to array of uniform random variables
  * Argument mu* : pointer to mean vector
+ * Argument y*  : pointer to truncation vector, 1.0f if positive, 0.0f if negative
  * Output       : mutates z and stores result in its place
  */
 extern "C"
-__global__ void cuda_positive_tnorm(int n, float *z, float *mu) {
-  int i = blockIdx.z*blockDim.z + threadIDX.z
-  if(i < n)
-    z[i] = mu[i] + normcdfinvf(normcdff(-mu[i]) + (z[i] * (1.0f - normcdff(-mu[i]))))
+__global__ void cuda_onesided_unitvar_tnorm(int n, float *z, float *mu, float *y) {
+  int i = blockIdx.x*blockDim.x + threadIDX.x;
+  if(i < n) {
+    float ystar = (y[i] - 0.5) * 2.0;
+    float phi = normcdff(-mu[i]*ystar);
+    z[i] = ystar * ((mu[i]*ystar) + normcdfinvf(phi + (z[i] * (1.0f - phi))));
+  }
 }
