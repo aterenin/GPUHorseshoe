@@ -31,10 +31,10 @@
  * Output       : mutates z and stores result in its place
  */
 extern "C"
-__global__ void cuda_onesided_unitvar_tnorm(int n, float *z, float *mu, float *y) {
-  int i = blockIdx.x*blockDim.x + threadIDX.x;
+__global__ void cuda_onesided_unitvar_tnorm(int n, float *z, float *mu, int *y) {
+  int i = blockIdx.x*blockDim.x + threadIdx.x;
   if(i < n) {
-    float ystar = (y[i] - 0.5) * 2.0;
+    float ystar = (y[i] == 1) ? 1.0 : -1.0; //faster than if/else
     float phi = normcdff(-mu[i]*ystar);
     z[i] = ystar * ((mu[i]*ystar) + normcdfinvf(phi + (z[i] * (1.0f - phi))));
   }
