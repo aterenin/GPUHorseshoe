@@ -34,8 +34,17 @@ extern "C"
 __global__ void cuda_onesided_unitvar_tnorm(int n, float *z, float *mu, int *y) {
   int i = blockIdx.x*blockDim.x + threadIdx.x;
   if(i < n) {
-    float ystar = (y[i] == 1) ? 1.0 : -1.0; //faster than if/else
+    //single precision version
+    float ystar = (y[i] == 1) ? 1.0f : -1.0f; //faster than if/else
     float phi = normcdff(-mu[i]*ystar);
     z[i] = ystar * ((mu[i]*ystar) + normcdfinvf(phi + (z[i] * (1.0f - phi))));
+
+    //double precision version
+//    float ystar = (y[i] == 1) ? 1.0f : -1.0f; //faster than if/else
+//    double phi = normcdf((double) (-mu[i]*ystar));
+//    double zdbl = (double) z[i];
+//    double phiinv = normcdfinv(phi + (zdbl * (1.0 - phi)));
+//    float phiinvf = (float) phiinv;
+//    z[i] = ystar * ((mu[i]*ystar) + phiinvf
   }
 }
