@@ -4,7 +4,7 @@ generate.probit.data = function(n, beta, id=0, write=FALSE) {
   beta = matrix(beta, ncol=1)
   p = nrow(beta)
   x = matrix(rnorm(n*p),nrow=n,ncol=p)
-  y = pnorm(x %*% beta) %>% round
+  y = pnorm(x %*% beta + rnorm(n,0,1)) %>% round
   d = cbind(y,x) %>% data.frame %>% set_colnames(c("y", paste0("x",1:p))) 
   if(write) {
     write.table(d, paste0("data/probit-",id,".csv"), sep = ",", row.names = FALSE) 
@@ -13,12 +13,14 @@ generate.probit.data = function(n, beta, id=0, write=FALSE) {
     return(d) 
 }
 
-beta = c(1.3,4,-1,1.6,5,-2,rep(0,394))
+beta = c(1.3,4,-1,1.6,5,-2,rep(0,34))
 
-generate.probit.data(1000,beta,1,TRUE)
+phi = X %*% c(1.3,4,-1,1.6,5,-2,rep(0,34))
 
-n=1000
-p=400
+generate.probit.data(100,beta,1,TRUE)
+
+n=100
+p=40
 require(truncnorm)
 d = read.csv("data/probit-1.csv")
 XtX = read.csv("data/probit-xtx-1.csv")
@@ -26,15 +28,18 @@ X = d[,-1] %>% as.matrix
 y = d[,1] %>% as.matrix
 which(round(t(X) %*% X,5) != round(XtX,5)) %>% length
 Xt = t(X)
+# y[1:10] = 1 - y[1:1]
 lowertrunc = y %>% sapply(function(i) {
   if(i == 1) 0 else -Inf
 })
 uppertrunc = y %>% sapply(function(i) {
   if(i == 1) Inf else 0
 })
-R = chol(XtX)
-XtXinv = chol2inv(R)
-XtXinvXt = XtXinv %*% Xt
+sigmasq = 5
+Sigma = XtX + diag(1/sigmasq,p)
+R = chol(Sigma)
+SigmaInv = chol2inv(R)
+SigmaInvXt = SigmaInv %*% Xt
 
 nMC=10000
 
@@ -47,9 +52,9 @@ for(i in 2:nMC) {
   s = rnorm(p,0,1)
   Sigma.s = backsolve(R, s)
   Xtz = Xt %*% z[i-1,]
-  mu = solve(XtX, Xtz)
+  mu = solve(Sigma, Xtz)
   beta[i,] = Sigma.s + mu
-  # beta[i,] = mvrnorm(1, XtXinvXt %*% z[i-1,], XtXinv)
+  # beta[i,] = mvrnorm(1, SigmaInvXt %*% z[i-1,], SigmaInv)
   
   #sample z
   mu = X %*% beta[i,]
@@ -58,33 +63,22 @@ for(i in 2:nMC) {
   print.iteration(i, nMC)
 }
 
+round(colMeans(beta[,1:20]),2)
 plot(beta[,1])
 plot(beta[,2])
 plot(beta[,3])
 plot(beta[,4])
 plot(beta[,5])
 plot(beta[,6])
-round(colMeans(beta[,1:20]),2)
 plot(z[,1])
-
-out.beta = read.csv("~/Git/AsyncGibbsMPI/output/out-0-beta", header=FALSE)
-out.z0 = read.csv("~/Git/AsyncGibbsMPI/output/out-0-z0", header=FALSE)
-plot(out.beta[,1])
-plot(out.beta[,2])
-plot(out.beta[,3])
-plot(out.beta[,4])
-plot(out.beta[,5])
-plot(out.beta[,6])
-round(colMeans(out.beta[,1:20]),2)
-plot(out.z0)
 
 out.gpu.beta = read.csv("~/Git/AsyncGibbsMPI/output/out-GPU-beta", header=FALSE)
 out.gpu.z = read.csv("~/Git/AsyncGibbsMPI/output/out-GPU-z", header=FALSE)
+round(colMeans(out.gpu.beta[,1:20]),2)
 plot(out.gpu.beta[,1])
 plot(out.gpu.beta[,2])
 plot(out.gpu.beta[,3])
 plot(out.gpu.beta[,4])
 plot(out.gpu.beta[,5])
 plot(out.gpu.beta[,6])
-round(colMeans(out.gpu.beta[,1:20]),2)
 plot(out.gpu.z[,1])
