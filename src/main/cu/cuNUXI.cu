@@ -22,13 +22,13 @@
  * Purpose          : draws Exp(1 + theta^2) random variables
  * Argument n       : size of sampler
  * Argument *u      : pointer to array of uniforms
- * Argument *theta  : pointer to parameter
+ * Argument *thetaSq: pointer to parameter
  * Output           : mutates u and stores result in its place
  */
 extern "C"
-__global__ void cuda_nuInvXiInv(int n, float *u, float *theta) {
+__global__ void cuda_nuInvXiInv(int n, float *u, float *thetaSq) {
   int i = blockIdx.x*blockDim.x + threadIdx.x;
   if(i < n) {
-    u[i] = (-1.0f/(1.0f + (theta[i]*theta[i]))) * logf(u[i]);
+    u[i] = (-1.0f/(1.0f + thetaSq[i])) * logf(u[i]);
   }
 }

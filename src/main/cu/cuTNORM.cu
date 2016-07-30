@@ -45,9 +45,9 @@ __global__ void cuda_onesided_unitvar_tnorm(int n, float *z, float *mu, int *y) 
       z[i] = ystar * prop;
     } else {
       //try to use inversion
-      float phi = normcdff(-mustar);
-      float u = normcdff(localz) * normcdff(mustar);
-      float out = ystar * (mustar + normcdfinvf(phi + (u * (1.0f - phi))));
+      float phi = normcdff(mustar);
+      float u = normcdff(localz) * phi; //1.0 - phi = normcdff(mustar);
+      float out = ystar * (mustar + normcdfinvf((1.0f - phi) + (u * phi)));
       //check for infinite
       if(!isinf(out))
         z[i] = out;

@@ -35,9 +35,8 @@
  */
 extern "C"
 __global__ void cuda_tauSqInv(int n, float *u, float *k, float *xiInv, float *LB, int* success) {
-  int i = threadIdx.x;
   __shared__ float acc[32]; //hardcode to 32 for now, fix later
-  if(i < n && blockIdx.x == 0) {
+  if(threadIdx.x < 32 && blockIdx.x == 0) {
     acc[threadIdx.x] = 0.0f;
     //copy parameters and uniforms to local memory
     float u1 = u[threadIdx.x * 2];
@@ -48,23 +47,25 @@ __global__ void cuda_tauSqInv(int n, float *u, float *k, float *xiInv, float *LB
     float theta = xiInv[0] + (0.5 * LB[0]);
 
     //compute constants
-    float a = sqrtf(2.0f * alpha);
+    float a = 1.0f/sqrtf(2.0f * alpha - 1.0f);
     float b = alpha - 1.3862944f; //log(4) = 1.3862944f
     float c = alpha + (1.0f / a);
-    float v = a * logf(u1 / (1.0f - u2));
-    float x = a * expf(v);
+    float v = a * logf(u1 / (1.0f - u1));
+    float x = alpha * expf(v);
 
     //perform accept/reject
     if( (b + (c*v) - x) > logf(u1 * u1 * u2) ) {
       acc[threadIdx.x] = x;
+      u[threadIdx.x] = x;
     }
+
 
     __syncthreads();
 
     //find accepted value on thread 0
     if(threadIdx.x == 0) {
-      for(int j=0; j < blockDim.x; j++) {
-        float stdGamma = acc[threadIdx.x];
+      for(int j=0; j < 32; j++) {
+        float stdGamma = acc[j];
         if(stdGamma > 0.0f) { //thread accepted its proposal
           u[0] = stdGamma / theta;
           success[0] = 1;
