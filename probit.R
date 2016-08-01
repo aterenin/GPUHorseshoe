@@ -13,16 +13,16 @@ generate.probit.data = function(n, beta, id=0, write=FALSE) {
     return(d) 
 }
 
-beta = c(1.3,4,-1,1.6,5,-2,rep(0,100-6))
+beta.correct = c(1.3,4,-1,1.6,5,-2,rep(0,500-6))
 
-generate.probit.data(1000,beta,1,TRUE)
+generate.probit.data(5000,beta.correct,1,TRUE)
 
-n=1000
-p=100
+n=2000
+p=200
 require(truncnorm)
 d = read.csv("data/probit-1.csv")
-X = d[,-1] %>% as.matrix
-y = d[,1] %>% as.matrix
+X = d[1:n,2:(p+1)] %>% as.matrix
+y = d[1:n,1] %>% as.matrix
 XtX = t(X) %*% X
 Xt = t(X)
 lowertrunc = y %>% sapply(function(i) {
@@ -41,6 +41,7 @@ nuInv = matrix(1, nrow=nMC, ncol=p)
 tauSqInv = matrix(1, nrow=nMC, ncol=1)
 xiInv = matrix(1, nrow=nMC, ncol=1)
 
+startTime = Sys.time()
 for(i in 2:nMC) {
   #sample lambdaSqInv
   lambdaSqInv[i,] = rexp(p, rate = nuInv[i-1,] + (tauSqInv[i-1,] * (beta[i-1,]^2) / 2))
@@ -70,6 +71,9 @@ for(i in 2:nMC) {
   
   print.iteration(i, nMC)
 }
+endTime = Sys.time()
+
+endTime-startTime
 
 round(colMeans(beta[,1:20]),2)
 plot(beta[,1])
