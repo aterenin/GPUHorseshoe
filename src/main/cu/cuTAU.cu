@@ -26,25 +26,25 @@
                       that wasn't rejected (best when run on a 32-thread warp)
  * Argument n       : size of parallel proposal
  * Argument *u      : pointer to array of blockDim.x * x uniform random variables
- * Argument *k      : pointer to shape parameter
- * Argument *xiInv  : pointer to xiInv (used in calculating scale)
- * Argument *LB     : pointer to LB (used in calculating scale)
+ * Argument *alphaG : pointer to shape parameter
+ * Argument *xiInv  : pointer to xiInv (used in calculating rate)
+ * Argument *LB     : pointer to LB (used in calculating rate)
  * Argument *success: pointer to flag indicating whether kernel succeeded or not
  * Output           : mutates u[0] and stores result in its place, and mutates success
                       and stores 1 if sample was accepted and 0 otherwise
  */
 extern "C"
-__global__ void cuda_tauSqInv(int n, float *u, float *k, float *xiInv, float *LB, int* success) {
+__global__ void cuda_tauSqInv(int n, float *u, float *alphaG, float *xiInv, float *LB, int* success) {
   extern __shared__ float acc[];
   if(threadIdx.x < blockDim.x && blockIdx.x == 0) {
     acc[threadIdx.x] = 0.0f;
     //copy parameters and uniforms to local memory
     float u1 = u[threadIdx.x * 2];
     float u2 = u[threadIdx.x * 2 + 1];
-    float alpha = k[0];
+    float alpha = alphaG[0];
 
     //compute rate parameter
-    float theta = xiInv[0] + (0.5 * LB[0]);
+    float beta = xiInv[0] + (0.5 * LB[0]);
 
     //compute constants
     float a = 1.0f/sqrtf(2.0f * alpha - 1.0f);
@@ -67,7 +67,7 @@ __global__ void cuda_tauSqInv(int n, float *u, float *k, float *xiInv, float *LB
       for(int j=0; j < blockDim.x; j++) {
         float stdGamma = acc[j];
         if(stdGamma > 0.0f) { //thread accepted its proposal
-          u[0] = stdGamma / theta;
+          u[0] = stdGamma / beta;
           success[0] = 1;
           break;
         }
