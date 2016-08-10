@@ -23,8 +23,14 @@
 // utility script to print sizeof(curandState), which is nowhere to be found in JCuda
 int main() {
     curandState *states;
+    curandStatePhilox4_32_10_t *philox;
+    curandStateMRG32k3a *mrg;
     cudaMalloc((void **)&states, 64 * 64 * sizeof(curandState));
+    cudaMalloc((void **)&philox, 64 * 64 * sizeof(curandStatePhilox4_32_10_t));
+    cudaMalloc((void **)&mrg, 64 * 64 * sizeof(curandStateMRG32k3a));
     printf("sizeof(curandState) %lu\n",sizeof(curandState));
+    printf("sizeof(curandStatePhilox4_32_10_t) %lu\n",sizeof(curandStatePhilox4_32_10_t));
+    printf("sizeof(curandStateMRG32k3a) %lu\n",sizeof(curandStateMRG32k3a));
 }
 
 

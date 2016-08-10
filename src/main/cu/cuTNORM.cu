@@ -15,7 +15,7 @@
  * /
  */
 
-
+#include <curand_kernel.h>
 
 /*
  * Function         : cuda_onesided_unitvar_tnorm
@@ -25,35 +25,52 @@
                       in floating point precision as long as mean vector mu is not too far
                       away from 0.
  * Argument n       : size of sample
- * Argument *z      : pointer to array of Gaussian random variables
+ * Argument *state  : pointer to random number generator state
  * Argument *mu     : pointer to mean vector
  * Argument *y      : pointer to truncation vector, 1 if positive, 0 if negative
- * Output           : mutates z and stores result in its place
+ * Output           : mutates mu and stores result in its place
  */
 extern "C"
-__global__ void cuda_onesided_unitvar_tnorm(int n, float *z, float *mu, int *y) {
+__global__ void cuda_onesided_unitvar_tnorm(int n, curandState *globalState, float *mu, int *y) {
   int i = blockIdx.x*blockDim.x + threadIdx.x;
   if(i < n) {
     //combined rejection sampler version
     float ystar = (float) (y[i] * 2 - 1); //transform from {0,1} to {-1.0f, 1.0f}
     float mustar = ystar * mu[i]; //always positive
 
-    //try to just take the provided Gaussian
-    float localz = z[i];
-    float prop = localz + mustar;
-    if(prop > 0.0f) {
-      z[i] = ystar * prop;
+    curandState state = globalState[0]; //copy random number generator state to local memory
+    skipahead((unsigned long long) (3*i), &state); //give each thread its own pseudorandom subsequence with spacing 2^67
+    //skipahead_sequence overflows somewhere, so use standard skipahead with spacing 3.
+
+    if(mustar < 0.47f) { //magic number to lower bound acceptance probability at around 2/3
+      //upper tail: use exponential rejection sampler
+      while(true) {
+        float u = curand_uniform(&state); //one uniform for proposal
+        float u2 = curand_uniform(&state); //one uniform for accept/reject step
+        float alpha = (-mustar + sqrtf(mustar * mustar + 4.0f))/2.0f; //optimal scaling factor
+        float prop = -logf(u) / alpha; //generate translated exponential(alpha, mu-)
+        float rho = expf((prop - mustar - alpha) * (prop - mustar - alpha) / -2.0f); //compute acceptance probability
+        if(u2 < rho) {
+          mu[i] = ystar * prop;
+          break;
+        }
+      }
     } else {
-      //try to use inversion
-      float phi = normcdff(mustar);
-      float u = normcdff(localz) * phi; //1.0 - phi = normcdff(mustar);
-      float out = ystar * (mustar + normcdfinvf((1.0f - phi) + (u * phi)));
-      //check for infinite
-      if(!isinf(out))
-        z[i] = out;
-      else
-        z[i] = mustar * ystar;
+      //lower tail: use Gaussian rejection sampler
+      while(true) {
+        float prop = curand_normal(&state) + mustar;
+        if(prop > 0.0f) {
+          mu[i] = ystar * prop;
+          break;
+        }
+      }
     }
+
+    __syncthreads();
+
+    //thread 0: copy curand state back to global memory
+    if(i == n-1)
+      globalState[0] = state;
   }
 }
     //single precision version
@@ -69,32 +86,18 @@ __global__ void cuda_onesided_unitvar_tnorm(int n, float *z, float *mu, int *y) 
 //    float phiinvf = (float) phiinv;
 //    z[i] = ystar * ((mu[i]*ystar) + phiinvf);
 
-//    if(mustar < -5.0f) {
-//      //upper tail: use exponential rejection sampler
-//      while(true) {
-//        float u = curand_uniform(state);
-//        float alpha = -mustar + sqrtf(mustar * mustar + 4.0f); //optimal scaling factor
-//        float prop = (-logf(u) / alpha) - mustar; //generate translated exponential(alpha, mu-)
-//        float rho = expf((prop - alpha) * (prop - alpha) / -2.0f); //compute acceptance probability
-//        if(u < rho) {
-//          z[i] = ystar * prop;
-//          break;
-//        }
-//      }
-//    } else if(mustar < 5.0f) {
-//      //middle: use inversion method
-//      float u = curand_uniform(state);
-//      float phi = normcdff(-mustar);
-//      z[i] = ystar * (mustar + normcdfinvf(phi + (u * (1.0f - phi))));
+//    float localz = z[i];
+//    float prop = localz + mustar;
+//    if(prop > 0.0f) {
+//      z[i] = ystar * prop;
 //    } else {
-//      //lower tail: use Gaussian rejection sampler
-//      while(true) {
-//        float prop = curand_normal(state) + mustar;
-//        if(prop > 0.0f) {
-//          z[i] = ystar * prop;
-//          break;
-//        }
-//      }
+//      //try to use inversion
+//      float phi = normcdff(mustar);
+//      float u = normcdff(localz) * phi; //1.0 - phi = normcdff(mustar);
+//      float out = ystar * (mustar + normcdfinvf((1.0f - phi) + (u * phi)));
+//      //check for infinite
+//      if(!isinf(out))
+//        z[i] = out;
+//      else
+//        z[i] = mustar * ystar;
 //    }
-//    //copy curand state back to global memory
-//    state[i] = localState;
