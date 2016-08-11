@@ -31,15 +31,15 @@
  * Output           : mutates mu and stores result in its place
  */
 extern "C"
-__global__ void cuda_onesided_unitvar_tnorm(int n, curandState *globalState, float *mu, int *y) {
+__global__ void cuda_onesided_unitvar_tnorm(int n, curandStatePhilox4_32_10_t *globalState, float *mu, int *y) {
   int i = blockIdx.x*blockDim.x + threadIdx.x;
   if(i < n) {
     //combined rejection sampler version
     float ystar = (float) (y[i] * 2 - 1); //transform from {0,1} to {-1.0f, 1.0f}
     float mustar = ystar * mu[i]; //always positive
 
-    curandState state = globalState[0]; //copy random number generator state to local memory
-    skipahead((unsigned long long) (3*i), &state); //give each thread its own pseudorandom subsequence with spacing 2^67
+    curandStatePhilox4_32_10_t state = globalState[0]; //copy random number generator state to local memory
+    skipahead((unsigned long long) (4*i), &state); //give each thread its own pseudorandom subsequence with spacing 2^67
     //skipahead_sequence overflows somewhere, so use standard skipahead with spacing 3.
 
     if(mustar < 0.47f) { //magic number to lower bound acceptance probability at around 2/3
