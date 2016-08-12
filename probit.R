@@ -56,7 +56,7 @@ for(i in 2:nMC) {
   xiInv[i,] = rexp(1, rate = 1 + tauSqInv[i,])
   
   #sample beta
-  Sigma = XtX + (tauSqInv[i,] + diag(lambdaSqInv[i,]))
+  Sigma = XtX + (tauSqInv[i,] * diag(lambdaSqInv[i,]))
   R = chol(Sigma)
   s = rnorm(p,0,1)
   Sigma.s = backsolve(R, s)

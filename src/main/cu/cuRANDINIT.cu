@@ -27,5 +27,5 @@ extern "C"
 __global__ void cuda_rand_init(int seed, curandStatePhilox4_32_10_t *state) {
   int i = blockIdx.x*blockDim.x + threadIdx.x;
   if(i == 0)
-    curand_init(seed, 0, 0, &state[0]);
+    curand_init((unsigned long long) seed, (unsigned long long) 0, (unsigned long long) 0, &state[0]);
 }
