@@ -39,7 +39,7 @@ __global__ void cuda_onesided_unitvar_tnorm(int n, curandStatePhilox4_32_10_t *g
     float mustar = ystar * mu[i]; //always positive
 
     curandStatePhilox4_32_10_t state = globalState[0]; //copy random number generator state to local memory
-    skipahead((unsigned long long) (5*i), &state); //give each thread its own pseudorandom subsequence with spacing 2^67
+    skipahead((unsigned long long) (6*i), &state); //give each thread its own pseudorandom subsequence with spacing 2^67
     //skipahead_sequence overflows somewhere, so use standard skipahead with spacing 3.
 
     if(mustar < 0.47f) { //magic number to lower bound acceptance probability at around 2/3
@@ -58,7 +58,11 @@ __global__ void cuda_onesided_unitvar_tnorm(int n, curandStatePhilox4_32_10_t *g
     } else {
       //lower tail: use Gaussian rejection sampler
       while(true) {
-        float prop = curand_normal(&state) + mustar;
+//        float prop = curand_normal(&state) + mustar; //BROKEN: use inverse transform method instead
+        float u = curand_uniform(&state);
+        float prop = normcdfinvf(u) + mustar;
+        if(isinf(prop))
+          prop = 5.0f + mustar; //edge case, make sure computation doesn't stop if u == 1.0f
         if(prop > 0.0f) {
           mu[i] = ystar * prop;
           break;
