@@ -72,7 +72,7 @@ __global__ void cuda_onesided_unitvar_tnorm(int n, curandStatePhilox4_32_10_t *g
 
     __syncthreads();
 
-    //thread 0: copy curand state back to global memory
+    //last thread: copy curand state back to global memory
     if(i == n-1)
       globalState[0] = state;
   }
