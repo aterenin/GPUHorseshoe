@@ -17,10 +17,10 @@ beta.correct = c(1.3,4,-1,1.6,5,-2,rep(0,500-6))
 
 generate.probit.data(5000,beta.correct,1,TRUE)
 
-n=2000
-p=200
+n=10000
+p=100
 require(truncnorm)
-d = read.csv("data/probit-1.csv")
+d = read.csv("data/probit-1.csv",header=FALSE)
 X = d[1:n,2:(p+1)] %>% as.matrix
 y = d[1:n,1] %>% as.matrix
 XtX = t(X) %*% X
