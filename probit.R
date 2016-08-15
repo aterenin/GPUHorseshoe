@@ -17,11 +17,11 @@ beta.correct = c(1.3,4,-1,1.6,5,-2,rep(0,500-6))
 
 generate.probit.data(5000,beta.correct,1,TRUE)
 
-n=10000
-p=100
+n=372295
+p=87
 require(truncnorm)
-d = read.csv("data/probit-1.csv",header=FALSE)
-X = d[1:n,2:(p+1)] %>% as.matrix
+d = read.csv("data/kaiser.csv",header=FALSE)
+X = cbind(rep(1,n), d[1:n,2:p]) %>% as.matrix
 y = d[1:n,1] %>% as.matrix
 XtX = t(X) %*% X
 Xt = t(X)
@@ -35,7 +35,7 @@ uppertrunc = y %>% sapply(function(i) {
 nMC=10000
 
 beta = matrix(0, nrow=nMC, ncol=p)
-z = matrix(0, nrow=nMC,ncol=n)
+z = matrix(0, nrow=1,ncol=n)
 lambdaSqInv = matrix(1, nrow=nMC, ncol=p)
 nuInv = matrix(1, nrow=nMC, ncol=p)
 tauSqInv = matrix(1, nrow=nMC, ncol=1)
@@ -60,14 +60,14 @@ for(i in 2:nMC) {
   R = chol(Sigma)
   s = rnorm(p,0,1)
   Sigma.s = backsolve(R, s)
-  Xtz = Xt %*% z[i-1,]
+  Xtz = Xt %*% z[1,]#z[i-1,]
   mu = solve(Sigma, Xtz)
   beta[i,] = Sigma.s + mu
   # beta[i,] = mvrnorm(1, SigmaInvXt %*% z[i-1,], SigmaInv)
   
   #sample z
   mu = X %*% beta[i,]
-  z[i,] = rtruncnorm(n, a=lowertrunc, b=uppertrunc, mean=mu, sd=1)
+  z[1,] = rtruncnorm(n, a=lowertrunc, b=uppertrunc, mean=mu, sd=1)
   
   print.iteration(i, nMC)
 }
