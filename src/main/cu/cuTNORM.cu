@@ -33,16 +33,19 @@
 extern "C"
 __global__ void cuda_onesided_unitvar_tnorm(int n, curandStatePhilox4_32_10_t *globalState, float *mu, int *y) {
   int i = blockIdx.x*blockDim.x + threadIdx.x;
+  curandStatePhilox4_32_10_t state = globalState[0]; //copy random number generator state to local memory
+
   if(i < n) {
     //combined rejection sampler version
     float ystar = (float) (y[i] * 2 - 1); //transform from {0,1} to {-1.0f, 1.0f}
     float mustar = ystar * mu[i]; //always positive
 
-    curandStatePhilox4_32_10_t state = globalState[0]; //copy random number generator state to local memory
     skipahead((unsigned long long) (6*i), &state); //give each thread its own pseudorandom subsequence with spacing 2^67
     //skipahead_sequence overflows somewhere, so use standard skipahead with spacing 3.
 
-    if(mustar < 0.47f) { //magic number to lower bound acceptance probability at around 2/3
+    if(!isfinite(mustar))
+      mu[i] = 0.0f;
+    else if(mustar < 0.47f) { //magic number to lower bound acceptance probability at around 2/3
       //upper tail: use exponential rejection sampler
       while(true) {
         float u = curand_uniform(&state); //one uniform for proposal
@@ -58,7 +61,7 @@ __global__ void cuda_onesided_unitvar_tnorm(int n, curandStatePhilox4_32_10_t *g
     } else {
       //lower tail: use Gaussian rejection sampler
       while(true) {
-//        float prop = curand_normal(&state) + mustar; //BROKEN: use inverse transform method instead
+        //float prop = curand_normal(&state) + mustar; //BROKEN: use inverse transform method instead
         float u = curand_uniform(&state);
         float prop = normcdfinvf(u) + mustar;
         if(isinf(prop))
@@ -69,39 +72,11 @@ __global__ void cuda_onesided_unitvar_tnorm(int n, curandStatePhilox4_32_10_t *g
         }
       }
     }
-
-    __syncthreads();
-
-    //last thread: copy curand state back to global memory
-    if(i == n-1)
-      globalState[0] = state;
   }
+
+  __syncthreads();
+
+  //last thread: copy curand state back to global memory
+  if(i == n-1)
+    globalState[0] = state;
 }
-    //single precision version
-//    float ystar = (y[i] == 1) ? 1.0f : -1.0f; //faster than if/else
-//    float phi = normcdff(-mu[i]*ystar);
-//    z[i] = ystar * ((mu[i]*ystar) + normcdfinvf(phi + (z[i] * (1.0f - phi))));
-
-    //double precision version
-//    float ystar = (y[i] == 1) ? 1.0f : -1.0f; //faster than if/else
-//    double phi = normcdf((double) (-mu[i]*ystar));
-//    double zdbl = (double) z[i];
-//    double phiinv = normcdfinv(phi + (zdbl * (1.0 - phi)));
-//    float phiinvf = (float) phiinv;
-//    z[i] = ystar * ((mu[i]*ystar) + phiinvf);
-
-//    float localz = z[i];
-//    float prop = localz + mustar;
-//    if(prop > 0.0f) {
-//      z[i] = ystar * prop;
-//    } else {
-//      //try to use inversion
-//      float phi = normcdff(mustar);
-//      float u = normcdff(localz) * phi; //1.0 - phi = normcdff(mustar);
-//      float out = ystar * (mustar + normcdfinvf((1.0f - phi) + (u * phi)));
-//      //check for infinite
-//      if(!isinf(out))
-//        z[i] = out;
-//      else
-//        z[i] = mustar * ystar;
-//    }
