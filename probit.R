@@ -61,7 +61,7 @@ for(i in 2:nMC) {
   s = rnorm(p,0,1)
   Sigma.s = backsolve(R, s)
   Xtz = crossprod(X, z[1,]) #Xt %*% z[i-1,]
-  mu = solve(Sigma, Xtz)
+  mu = backsolve(R,backsolve(R, Xtz, transpose=TRUE)) #solve(Sigma, Xtz)
   beta[i,] = Sigma.s + mu
   # beta[i,] = mvrnorm(1, SigmaInvXt %*% z[i-1,], SigmaInv)
   
