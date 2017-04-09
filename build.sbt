@@ -1,10 +1,10 @@
-name := "AsyncGibbsMPI"
+name := "Horseshoe"
 
 version := "1.0"
 
 scalaVersion := "2.11.8"
 
-assemblyJarName in assembly := "AsyncGibbsMPI.jar"
+assemblyJarName in assembly := "Horseshoe.jar"
 mainClass in assembly := Some("GPUTest")
 test in assembly := {}
 assemblyExcludedJars in assembly := {
